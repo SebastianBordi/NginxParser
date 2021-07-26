@@ -13,6 +13,7 @@ def main (argv: list[str]):
     global path
     global conString
     parseArguments(argv)
+    schemaCreation()
     if testMySqlConnection() == False :
         print("error connecting to de database")
         os.exit(-2)
@@ -121,11 +122,10 @@ def processFile():
     print("Processed Line: " + str(processedLines))
     print("Unprocessed Line: " + str(unprocessedLines))
 
-
 def saveParsedData(parsedData: data.ParsedLog):
     query = "INSERT INTO logs.logs (ip, `datetime`, `method`, response_code, url, endpoint, browser_data, original) "
     query += str.format("VALUES('{0}', '{1}', '{2}', {3}, '{4}', '{5}', '{6}', '{7}');", parsedData.ip, parsedData.date, parsedData.method, parsedData.responseCode, parsedData.url, parsedData.endpoint, parsedData.browserData, parsedData.original)
-    print(query)
+
     try:
         connection = getCon()
         if (connection):
@@ -155,6 +155,52 @@ def getCon():
 
     return cnx
             
+def schemaCreation():
+    if schemaValidation() == False:
+        query = """CREATE TABLE `logs` (
+            `id` int(10) unsigned NOT NULL AUTO_INCREMENT,
+            `ip` varchar(100) NOT NULL,
+            `datetime` varchar(255) NOT NULL,
+            `method` varchar(100) NOT NULL,
+            `response_code` int(10) unsigned DEFAULT NULL,
+            `url` varchar(100) DEFAULT NULL,
+            `endpoint` varchar(512) DEFAULT NULL,
+            `browser_data` varchar(1023) DEFAULT NULL,
+            `original` varchar(2047) NOT NULL,
+            UNIQUE KEY `id` (`id`)
+            ) ENGINE=InnoDB AUTO_INCREMENT=502 DEFAULT CHARSET=utf8mb4;"""
+        try: 
+            connection = getCon()
+            if (connection):
+                cursor = connection.cursor()
+                cursor.execute(query)
+                connection.commit()
+                connection.close()
+            else:
+                print ("error getting the connection")
+                os.exit(-1)
+        except:
+            print("error creating the schema")
+            os.exit(-2)
+
+def schemaValidation():
+    query = str.format("SELECT COUNT(*) FROM INFORMATION_SCHEMA.TABLES  WHERE TABLE_SCHEMA = '{0}' AND TABLE_NAME = 'logs' GROUP BY TABLE_NAME", getParamFromConnectionString("Database"))
+    try: 
+        connection = getCon()
+        if (connection):
+            cursor = connection.cursor(buffered=True)
+            cursor.execute(query)
+            connection.commit()
+            result = cursor.rowcount != 0
+            connection.close()
+            return result
+                
+        else:
+            print ("error getting the connection")
+            os.exit(-1)
+    except:
+        print("error creating the schema")
+        os.exit(-2)
 
 if __name__ == "__main__":
     main(sys.argv[1:])
